@@ -1,25 +1,133 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+##Loading and preprocessing the data
 
-
-## Loading and preprocessing the data
-
-
+```{r echo=TRUE}
+activity <- read.csv("activity.csv")
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r warning=FALSE,message=FALSE, echo=TRUE}
+library(dplyr)
+library(lubridate)
 
+totalstep <- activity %>% 
+  group_by(date) %>% 
+  summarise(
+    steps = sum(steps)
+  )
+totalstep <- na.omit(totalstep)
+totalstep$date <- ymd(totalstep$date)
 
-## What is the average daily activity pattern?
+##Calculate the total number of steps taken per day
+hist(totalstep$steps, breaks=10, main="", xlab="Total Steps")
 
+##Calculate and report the mean and median of the total number of steps taken per day
+##Median is 10765 while mean is 10766
+summary(totalstep$steps)
+```
 
+##What is the average daily activity pattern?
 
-## Imputing missing values
+```{r warning=FALSE,message=FALSE, echo=TRUE}
+library(dplyr)
+library(ggplot2)
 
+activity=na.omit(activity)
 
+dailypat <- activity %>% 
+  group_by(interval) %>% 
+  summarise(
+    steps = mean(steps)
+  )
 
-## Are there differences in activity patterns between weekdays and weekends?
+##Make a time series plot
+ggplot(data=dailypat,aes(x=interval, y=steps))+geom_line()+ggtitle("Average Daily Activity Pattern") + xlab("5-minute Interval") + 
+  ylab("Average Number of Steps")
+
+##Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+##The max number of steps (206) is at the 835th interval.
+dailypat[which.max(dailypat$steps),]
+```
+
+##Imputing missing values
+
+```{r warning=FALSE,message=FALSE, echo=TRUE}
+
+##Re-read the csv file because the original file has been altered by the operations above.
+activity <- read.csv("activity.csv")
+
+library(dplyr)
+library(lubridate)
+
+##Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+table((is.na(activity$steps)))
+
+##Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+##I will use the mean of the total number of steps per day to replace all NA's
+
+meen <- activity %>% 
+  group_by(date) %>% 
+  summarise(
+    steps = sum(steps)
+  )
+meen$date <- ymd(meen$date)
+
+##Getting the mean of steps excluding NAs:
+##10,766
+mean(meen$steps, na.rm=TRUE)
+
+##Create a new dataset that is equal to the original dataset but with the missing data filled in.
+meen$steps[is.na(meen$steps)] <- 10766
+
+##Make a histogram of the total number of steps taken each day. 
+hist(meen$steps, breaks=10, main="", xlab="Total Steps")
+
+##Calculate and report the mean and median total number of steps taken per day. 
+##Mean is 10,766 and median is 10,766
+summary(meen$steps)
+
+##Do these values differ from the estimates from the first part of the assignment?
+##Yes, the median increased by 1; however, the mean remained the same.
+
+##What is the impact of imputing missing data on the estimates of the total daily number of steps?
+##None because an increase of 1 in median is insignificant and the mean did not change.
+
+```
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+```{r warning=FALSE,message=FALSE, echo=TRUE}
+library(dplyr)
+library(lubridate)
+library(timeDate)
+library(gridExtra)
+
+activity <- read.csv("activity.csv")
+
+##Getting the mean of steps
+mean(activity$steps, na.rm=TRUE)
+
+##Changing NA's to a mean of 37
+activity$steps[is.na(activity$steps)] <- 37
+
+##Changing format of $date to 'Date'
+activity$date <- ymd(activity$date)
+
+##Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+activity$weekday=isWeekday(activity$date, wday=1:5)
+
+week <- activity %>% 
+  group_by(weekday, interval) %>% 
+  summarise(
+    steps = mean(steps)
+  )
+
+p1 <- ggplot(data=week[week$weekday == FALSE,],aes(x=interval, y=steps))+geom_line() + scale_y_continuous(limits = c(0, 210)) + ggtitle("Weekends") + xlab("5-minute Interval") + 
+  ylab("Average Number of Steps")
+
+p2 <- ggplot(data=week[week$weekday == TRUE,],aes(x=interval, y=steps))+geom_line() + scale_y_continuous(limits = c(0, 210)) + ggtitle("Weekdays") + xlab("5-minute Interval") + 
+  ylab("Average Number of Steps")
+
+grid.arrange(p1,p2, ncol=2)
+
+```
